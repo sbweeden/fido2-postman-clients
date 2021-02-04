@@ -1,0 +1,414 @@
+{
+	"info": {
+		"_postman_id": "8ba15e36-5885-4268-a2d7-78811d1d08de",
+		"name": "FIDOInterop",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "WhoAmI",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"postman.setEnvironmentVariable(\"username\", jsonData.username);",
+							"postman.setEnvironmentVariable(\"displayName\", jsonData.email);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{access_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://{{hostport}}/ivcreds",
+					"protocol": "https",
+					"host": [
+						"{{hostport}}"
+					],
+					"path": [
+						"ivcreds"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "FetchAttesationOptions",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"eval(globals.fidoutils);",
+							"",
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.test(\"Status ok\", function() {",
+							"    pm.expect(jsonData.status).to.eql(\"ok\");",
+							"    var cco = attestationOptionsResponeToCredentialCreationOptions(jsonData);",
+							"    pm.environment.set(\"cco\", JSON.stringify(cco));",
+							"    console.log(\"cco: \" + JSON.stringify(cco));",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{access_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"displayName\":\"{{displayName}}\",\"attestation\":\"direct\",\"username\":\"{{username}}\"}"
+				},
+				"url": {
+					"raw": "https://{{hostport}}/mgaauth/sps/fido2/{{rpConfigID}}/attestation/options",
+					"protocol": "https",
+					"host": [
+						"{{hostport}}"
+					],
+					"path": [
+						"mgaauth",
+						"sps",
+						"fido2",
+						"{{rpConfigID}}",
+						"attestation",
+						"options"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PostAttesationResult",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var attestationFormat = 'packed'; // can be 'none', 'fido-u2f', 'packed', 'packed-self'",
+							"",
+							"// ensure the origin used in clientDataJSON matches the host we are operating against",
+							"var currentConfig = JSON.parse(pm.environment.get(\"fidoutilsConfig\"));",
+							"currentConfig.origin = \"https://\" +  pm.environment.get(\"hostport\");",
+							"pm.environment.set(\"fidoutilsConfig\", JSON.stringify(currentConfig));",
+							"",
+							"// eval here so new environment change to fidoutilsConfig is picked up",
+							"eval(globals.fidoutils);",
+							"",
+							"// generate an attestation response from the current CredentialCreationOptions (up=true, uv=true)",
+							"var ccor = processCredentialCreationOptions(",
+							"    JSON.parse(pm.environment.get(\"cco\")),",
+							"    attestationFormat, ",
+							"    true, ",
+							"    true);",
+							"",
+							"// add a friendly name, in this case generated",
+							"ccor.nickname = \"postman-\" + attestationFormat + \"-\" + generateRandom(10);",
+							"",
+							"pm.environment.set(\"ccor\", JSON.stringify(ccor));",
+							"console.log(\"sending ccor: \" + JSON.stringify(ccor));",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"eval(pm.environment.get('fidoutils'));",
+							"",
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.test(\"Status ok\", function() {",
+							"    pm.expect(jsonData.status).to.eql(\"ok\");",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{access_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{{ccor}}\n"
+				},
+				"url": {
+					"raw": "https://{{hostport}}/mgaauth/sps/fido2/{{rpConfigID}}/attestation/result",
+					"protocol": "https",
+					"host": [
+						"{{hostport}}"
+					],
+					"path": [
+						"mgaauth",
+						"sps",
+						"fido2",
+						"{{rpConfigID}}",
+						"attestation",
+						"result"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "FetchAssertionOptions",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"eval(globals.fidoutils);",
+							"",
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.test(\"Status ok\", function() {",
+							"    pm.expect(jsonData.status).to.eql(\"ok\");",
+							"    var cro = assertionOptionsResponeToCredentialRequestOptions(jsonData);",
+							"    pm.environment.set(\"cro\", JSON.stringify(cro));",
+							"    //console.log(\"cro: \" + JSON.stringify(cro));",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{access_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"username\":\"{{username}}\", \"userVerification\":\"preferred\"}"
+				},
+				"url": {
+					"raw": "https://{{hostport}}/mgaauth/sps/fido2/{{rpConfigID}}/assertion/options",
+					"protocol": "https",
+					"host": [
+						"{{hostport}}"
+					],
+					"path": [
+						"mgaauth",
+						"sps",
+						"fido2",
+						"{{rpConfigID}}",
+						"assertion",
+						"options"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PostAssertionResult",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// generate an assertion response from the current CredentialRequestOptions",
+							"console.log(\"Calling processCredentialRequestOptions starting with: \" + pm.environment.get(\"cro\"));",
+							"",
+							"// ensure the origin used in clientDataJSON matches the host we are operating against",
+							"var currentConfig = JSON.parse(pm.environment.get(\"fidoutilsConfig\"));",
+							"currentConfig.origin = \"https://\" +  pm.environment.get(\"hostport\");",
+							"pm.environment.set(\"fidoutilsConfig\", JSON.stringify(currentConfig));",
+							"",
+							"// eval here so new environment change to fidoutilsConfig is picked up",
+							"eval(globals.fidoutils);",
+							"",
+							"// get the assertion with up=true, uv=true",
+							"var cror = processCredentialRequestOptions(",
+							"    JSON.parse(pm.environment.get(\"cro\")), ",
+							"    true, ",
+							"    true);",
+							"",
+							"pm.environment.set(\"cror\", JSON.stringify(cror));",
+							"console.log(\"sending cror: \" + JSON.stringify(cror));",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"eval(pm.environment.get('fidoutils'));",
+							"",
+							"var jsonData = pm.response.json();",
+							"",
+							"pm.test(\"Status ok\", function() {",
+							"    pm.expect(jsonData.status).to.eql(\"ok\");",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{access_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{{cror}}\n"
+				},
+				"url": {
+					"raw": "https://{{hostport}}/mgaauth/sps/fido2/{{rpConfigID}}/assertion/result",
+					"protocol": "https",
+					"host": [
+						"{{hostport}}"
+					],
+					"path": [
+						"mgaauth",
+						"sps",
+						"fido2",
+						"{{rpConfigID}}",
+						"assertion",
+						"result"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
