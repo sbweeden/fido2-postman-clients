@@ -465,7 +465,6 @@ function processCredentialCreationOptions(cco, attestationFormat = 'none', up = 
 	
 	
 	// add the base64url of the CBOR encoding of the attestationObject to the response
-	
 	saar.attestationObject = hextob64u(BAtohex(myCBOREncode(attestationObject)));
 	
 	// construct ServerPublicKeyCredential fields
