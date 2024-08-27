@@ -167,7 +167,16 @@ function encode(value) {
           writeTypeAndLength(5, length);
           for (i = 0; i < length; ++i) {
             var key = keys[i];
-            encodeItem(key);
+
+            // This part modified by Shane to encode integer-based string keys from a JSON object as integers
+            // This is a bit presumptive, but in our use case for FIDO its ok since the only objects that we
+            // CBOR encode that use numbers as keys are COSE keys, and they have to be CBOR encoded as integers
+            // rather than as the string representation of the integer
+            if (Number.isNaN(parseInt(key))) {
+              encodeItem(key);  
+            } else {
+              encodeItem(parseInt(key));
+            }
             encodeItem(value[key]);
           }
         }
